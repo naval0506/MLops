@@ -1,0 +1,99 @@
+services:
+
+  # ── API principale ────────────────────────────────────────────────────────
+  spam-api:
+    image: ${HARBOR_HOST:-localhost:5000}/spam-detector/spam-api:${IMAGE_TAG:-latest}
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    container_name: spam-api
+    restart: unless-stopped
+    ports:
+      - "${API_PORT:-8000}:8000"
+    environment:
+      - MODEL_PATH=/app/model/spam_model.pkl
+      - METRICS_PATH=/app/model/metrics.json
+      - PYTHONPATH=/app/src
+    volumes:
+      - ./model:/app/model:ro   # <-- CORRIGÉ : Lit directement depuis ton PC
+    healthcheck:
+      test: ["CMD","python","-c","import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+    networks: [spam-net]
+
+  # ── Entraînement (job one-shot) ───────────────────────────────────────────
+  spam-trainer:
+    image: ${HARBOR_HOST:-localhost:5000}/spam-detector/spam-api:${IMAGE_TAG:-latest}
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    container_name: spam-trainer
+    profiles: [train]
+    command: ["python", "src/train.py"]
+    environment:
+      - MODEL_PATH=/app/model/spam_model.pkl
+      - METRICS_PATH=/app/model/metrics.json
+      - DATA_PATH=/app/data/spam.csv
+    volumes:
+      - ./model:/app/model      # <-- CORRIGÉ : Écrit directement dans ton dossier PC
+      - ./data:/app/data:ro
+    networks: [spam-net]
+
+  # ── Harbor Registry ───────────────────────────────────────────────────────
+  harbor-registry:
+    image: goharbor/registry-photon:v2.10.2
+    container_name: harbor-registry
+    profiles: [harbor]
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    volumes:
+      - harbor-data:/storage
+      - ./harbor/config.yml:/etc/registry/config.yml:ro
+    networks: [spam-net]
+
+  # ── Prometheus ────────────────────────────────────────────────────────────
+  prometheus:
+    image: prom/prometheus:v2.54.1
+    container_name: prometheus
+    profiles: [monitoring]
+    restart: unless-stopped
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.retention.time=15d"
+    networks: [spam-net]
+
+  # ── Grafana ───────────────────────────────────────────────────────────────
+  grafana:
+    image: grafana/grafana:11.2.0
+    container_name: grafana
+    profiles: [monitoring]
+    restart: unless-stopped
+    ports:
+      - "${GRAFANA_PORT:-3001}:3000"   # <-- CORRIGÉ : 3001 pour éviter le conflit
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-admin}
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+    depends_on: [prometheus]
+    networks: [spam-net]
+
+volumes:
+  # model-data a été supprimé car on utilise maintenant le dossier local
+  harbor-data:
+  prometheus-data:
+  grafana-data:
+
+networks:
+  spam-net:
+    driver: bridge

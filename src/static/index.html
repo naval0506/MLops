@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Spam Detector</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;1,400&display=swap" rel="stylesheet"/>
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    :root{
+      --bg:#0c0e13;--s1:#13161c;--s2:#1a1e26;--s3:#20252f;
+      --b1:rgba(255,255,255,.06);--b2:rgba(255,255,255,.11);
+      --tx:#e6e8f0;--mu:#5a6278;
+      --gr:#00d084;--gr2:rgba(0,208,132,.13);--gr3:rgba(0,208,132,.25);
+      --rd:#ff4060;--rd2:rgba(255,64,96,.13);--rd3:rgba(255,64,96,.25);
+      --yw:#f59e0b;
+      --mono:'DM Mono',monospace;--sans:'DM Sans',sans-serif;
+      --r:10px;--r2:14px;
+    }
+    html,body{height:100%;background:var(--bg);color:var(--tx);font-family:var(--sans);font-size:14px}
+    .app{display:grid;grid-template-columns:270px 1fr;height:100vh;overflow:hidden}
+
+    /* ── Sidebar ── */
+    .sidebar{background:var(--s1);border-right:1px solid var(--b1);display:flex;flex-direction:column;padding:20px 16px;overflow-y:auto;gap:20px}
+    .logo{display:flex;align-items:center;gap:10px}
+    .logo-icon{width:34px;height:34px;border-radius:9px;background:var(--gr2);border:1px solid var(--gr3);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+    .logo-icon svg{width:17px;height:17px}
+    .logo-name{font-family:var(--mono);font-size:12px;color:var(--gr);letter-spacing:.06em}
+    .logo-sub{font-size:10px;color:var(--mu);font-family:var(--mono);letter-spacing:.08em;margin-top:1px}
+    .sl{font-family:var(--mono);font-size:10px;letter-spacing:.12em;color:var(--mu);text-transform:uppercase;margin-bottom:8px}
+
+    /* status */
+    .status-card{background:var(--s2);border:1px solid var(--b1);border-radius:var(--r);padding:12px 14px;display:flex;flex-direction:column;gap:8px}
+    .sr{display:flex;align-items:center;justify-content:space-between}
+    .sk{font-family:var(--mono);font-size:11px;color:var(--mu)}
+    .sv{font-family:var(--mono);font-size:11px;color:var(--tx)}
+    .dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+    .dot.g{background:var(--gr);box-shadow:0 0 6px var(--gr)}
+    .dot.r{background:var(--rd)}
+    .dot.y{background:var(--yw)}
+
+    /* examples */
+    .ex-list{display:flex;flex-direction:column;gap:6px}
+    .ex{padding:9px 11px;background:var(--s2);border:1px solid var(--b1);border-radius:8px;cursor:pointer;transition:border-color .15s,background .15s;line-height:1.45;color:var(--mu);font-size:12px}
+    .ex:hover{border-color:var(--b2);color:var(--tx);background:var(--s3)}
+    .ex-tag{display:inline-block;font-family:var(--mono);font-size:9px;padding:1px 5px;border-radius:3px;margin-bottom:3px;font-weight:500}
+    .tag-sp{background:var(--rd2);color:var(--rd)}
+    .tag-hm{background:var(--gr2);color:var(--gr)}
+
+    /* stats */
+    .stats{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+    .stat{background:var(--s2);border:1px solid var(--b1);border-radius:8px;padding:9px 11px}
+    .sn{font-family:var(--mono);font-size:22px;font-weight:500;line-height:1}
+    .sl2{font-size:10px;color:var(--mu);margin-top:3px}
+
+    .sidebar-foot{margin-top:auto;font-size:11px;color:var(--mu);line-height:1.65}
+    .sidebar-foot a{color:var(--gr);text-decoration:none}
+
+    /* ── Main ── */
+    .main{display:flex;flex-direction:column;overflow:hidden}
+    .topbar{height:54px;border-bottom:1px solid var(--b1);display:flex;align-items:center;padding:0 24px;gap:10px;flex-shrink:0;background:var(--s1)}
+    .tb-title{font-size:14px;font-weight:500}
+    .tb-sep{width:1px;height:14px;background:var(--b2)}
+    .tb-sub{font-size:12px;color:var(--mu)}
+    .api-badge{margin-left:auto;display:flex;align-items:center;gap:6px;font-family:var(--mono);font-size:11px;color:var(--mu);background:var(--s2);border:1px solid var(--b1);border-radius:6px;padding:4px 10px}
+
+    /* messages */
+    .messages{flex:1;overflow-y:auto;padding:24px;display:flex;flex-direction:column;gap:16px;scroll-behavior:smooth}
+    .empty{display:flex;flex-direction:column;align-items:center;justify-content:center;flex:1;gap:10px;color:var(--mu);text-align:center}
+    .empty-icon{font-size:38px;opacity:.35}
+    .empty-title{font-size:15px;font-weight:500;color:var(--tx)}
+    .empty-sub{font-size:12px;max-width:280px;line-height:1.65}
+
+    .row{display:flex;gap:10px;max-width:740px;animation:fadeUp .2s ease}
+    .row.user{align-self:flex-end;flex-direction:row-reverse}
+    .av{width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:13px;border:1px solid var(--b1)}
+    .row.bot .av{background:var(--s2)}
+    .row.user .av{background:var(--gr2);border-color:var(--gr3)}
+    .body{display:flex;flex-direction:column;gap:6px}
+    .bubble{padding:11px 15px;border-radius:13px;font-size:13.5px;line-height:1.6}
+    .row.bot  .bubble{background:var(--s1);border:1px solid var(--b1);border-top-left-radius:3px;color:var(--tx)}
+    .row.user .bubble{background:var(--gr);color:#071a10;font-weight:500;border-top-right-radius:3px}
+
+    /* result card */
+    .rcard{border-radius:12px;border:1px solid;padding:14px 16px;min-width:270px}
+    .rcard.spam{background:var(--rd2);border-color:var(--rd3)}
+    .rcard.ham {background:var(--gr2);border-color:var(--gr3)}
+    .rh{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+    .rv{font-family:var(--mono);font-size:17px;font-weight:500;display:flex;align-items:center;gap:7px}
+    .rcard.spam .rv{color:var(--rd)}
+    .rcard.ham  .rv{color:var(--gr)}
+    .rc{font-family:var(--mono);font-size:22px;font-weight:500}
+    .rcard.spam .rc{color:var(--rd)}
+    .rcard.ham  .rc{color:var(--gr)}
+    .bar-t{height:4px;background:rgba(255,255,255,.08);border-radius:2px;margin-bottom:10px;overflow:hidden}
+    .bar-f{height:100%;border-radius:2px;transition:width .6s cubic-bezier(.4,0,.2,1)}
+    .rcard.spam .bar-f{background:var(--rd)}
+    .rcard.ham  .bar-f{background:var(--gr)}
+    .reason{font-size:12px;color:var(--mu);line-height:1.55}
+    .rmeta{display:flex;gap:14px;margin-top:10px;padding-top:10px;border-top:1px solid rgba(255,255,255,.06)}
+    .mi{font-family:var(--mono);font-size:11px}
+    .mk{color:var(--mu)}
+    .mv{color:var(--tx)}
+
+    /* typing */
+    .typing{display:flex;gap:4px;align-items:center;padding:13px 16px;background:var(--s1);border:1px solid var(--b1);border-radius:13px;border-top-left-radius:3px}
+    .typing span{width:6px;height:6px;border-radius:50%;background:var(--mu);animation:bounce 1.3s infinite}
+    .typing span:nth-child(2){animation-delay:.2s}
+    .typing span:nth-child(3){animation-delay:.4s}
+    @keyframes bounce{0%,60%,100%{opacity:.3;transform:translateY(0)}30%{opacity:1;transform:translateY(-5px)}}
+    @keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+
+    /* input */
+    .input-area{padding:16px 24px;border-top:1px solid var(--b1);background:var(--s1);flex-shrink:0}
+    .input-wrap{display:flex;gap:9px;align-items:flex-end;background:var(--s2);border:1px solid var(--b2);border-radius:13px;padding:9px 11px;transition:border-color .15s}
+    .input-wrap:focus-within{border-color:var(--gr3)}
+    #inp{flex:1;background:none;border:none;outline:none;color:var(--tx);font-family:var(--sans);font-size:14px;line-height:1.5;resize:none;max-height:110px}
+    #inp::placeholder{color:var(--mu)}
+    .send{width:35px;height:35px;border-radius:9px;background:var(--gr);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .15s;color:#071a10}
+    .send:hover{background:#00b872;transform:scale(1.05)}
+    .send:disabled{background:var(--s3);cursor:not-allowed;transform:none}
+    .send svg{width:15px;height:15px}
+    .hint{font-size:11px;color:var(--mu);margin-top:7px;text-align:center;font-family:var(--mono)}
+
+    ::-webkit-scrollbar{width:4px}
+    ::-webkit-scrollbar-thumb{background:var(--b2);border-radius:2px}
+  </style>
+</head>
+<body>
+<div class="app">
+
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="logo">
+      <div class="logo-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#00d084" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+      </div>
+      <div>
+        <div class="logo-name">SPAM DETECTOR</div>
+        <div class="logo-sub">MLOps · UCI Dataset</div>
+      </div>
+    </div>
+
+    <div>
+      <div class="sl">Statut API</div>
+      <div class="status-card">
+        <div class="sr">
+          <span class="sk">service</span>
+          <div style="display:flex;align-items:center;gap:5px">
+            <div class="dot y" id="sd"></div>
+            <span class="sv" id="st">vérification…</span>
+          </div>
+        </div>
+        <div class="sr">
+          <span class="sk">endpoint</span>
+          <span class="sv" id="ep" style="font-size:10px">localhost:8000</span>
+        </div>
+        <div class="sr">
+          <span class="sk">modèle</span>
+          <span class="sv" id="mdl">—</span>
+        </div>
+        <div class="sr">
+          <span class="sk">accuracy</span>
+          <span class="sv" id="acc">—</span>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <div class="sl">Exemples</div>
+      <div class="ex-list">
+        <div class="ex" onclick="useEx(this.dataset.msg)" data-msg="Congratulations! You've won a FREE iPhone. Click NOW to claim your prize!">
+          <span class="ex-tag tag-sp">SPAM</span><br>Congratulations! You've won a FREE iPhone. Click NOW to claim!
+        </div>
+        <div class="ex" onclick="useEx(this.dataset.msg)" data-msg="URGENT: Your bank account has been compromised. Call 0800-XXXX immediately to restore access.">
+          <span class="ex-tag tag-sp">SPAM</span><br>URGENT: Your bank account has been compromised. Call now.
+        </div>
+        <div class="ex" onclick="useEx(this.dataset.msg)" data-msg="Win £1000 cash! Text WIN to 87121 to enter. £2/msg, max 3 msg/week. T&C apply.">
+          <span class="ex-tag tag-sp">SPAM</span><br>Win £1000 cash! Text WIN to 87121. T&C apply.
+        </div>
+        <div class="ex" onclick="useEx(this.dataset.msg)" data-msg="Hey, are we still meeting for coffee at 3pm today?">
+          <span class="ex-tag tag-hm">HAM</span><br>Hey, are we still meeting for coffee at 3pm today?
+        </div>
+        <div class="ex" onclick="useEx(this.dataset.msg)" data-msg="Can you send me the quarterly report before end of day? Thanks.">
+          <span class="ex-tag tag-hm">HAM</span><br>Can you send me the quarterly report before end of day?
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <div class="sl">Session</div>
+      <div class="stats">
+        <div class="stat"><div class="sn" id="s-total">0</div><div class="sl2">analysés</div></div>
+        <div class="stat"><div class="sn" id="s-spam" style="color:var(--rd)">0</div><div class="sl2">spam</div></div>
+        <div class="stat"><div class="sn" id="s-ham" style="color:var(--gr)">0</div><div class="sl2">ham</div></div>
+        <div class="stat"><div class="sn" id="s-ms">—</div><div class="sl2">ms dernier</div></div>
+      </div>
+    </div>
+
+    <div class="sidebar-foot">
+      Modèle entraîné sur le <a href="https://archive.ics.uci.edu/ml/datasets/SMS+Spam+Collection" target="_blank">dataset UCI SMS</a> (5 572 SMS).<br><br>
+      Projet MLOps — GitLab CI/CD · Harbor · Jenkins · Docker
+    </div>
+  </aside>
+
+  <!-- Main -->
+  <div class="main">
+    <div class="topbar">
+      <span class="tb-title">Détecteur de Spam</span>
+      <div class="tb-sep"></div>
+      <span class="tb-sub">Analyse de SMS/email en temps réel</span>
+      <div class="api-badge">
+        <div class="dot y" id="badge-dot"></div>
+        <span id="badge-lbl">connexion…</span>
+      </div>
+    </div>
+
+    <div class="messages" id="msgs">
+      <div class="empty" id="empty">
+        <div class="empty-icon">🛡️</div>
+        <div class="empty-title">Prêt à analyser</div>
+        <div class="empty-sub">Tape un message ci-dessous ou choisis un exemple à gauche. Le modèle ML détecte instantanément spam ou ham.</div>
+      </div>
+    </div>
+
+    <div class="input-area">
+      <div class="input-wrap">
+        <textarea id="inp" placeholder="Tape ton message ici…" rows="1"></textarea>
+        <button class="send" id="send-btn" onclick="send()" title="Envoyer (Entrée)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
+          </svg>
+        </button>
+      </div>
+      <div class="hint">Entrée = envoyer &nbsp;·&nbsp; Maj+Entrée = nouvelle ligne</div>
+    </div>
+  </div>
+</div>
+
+<script>
+const API = '';  // Même origine — l'API FastAPI sert cette page
+let stats = {total:0, spam:0, ham:0};
+
+// ── Textarea auto-resize ──────────────────────────────────────────────────────
+const inp = document.getElementById('inp');
+inp.addEventListener('input', () => { inp.style.height='auto'; inp.style.height=Math.min(inp.scrollHeight,110)+'px'; });
+inp.addEventListener('keydown', e => { if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();send();} });
+
+// ── Health check ──────────────────────────────────────────────────────────────
+async function checkHealth(){
+  try {
+    const r = await fetch(`${API}/health`, {signal: AbortSignal.timeout(4000)});
+    const d = await r.json();
+    const ok = d.model_loaded;
+    setStatus(ok);
+    if(ok){
+      // Récupère les métriques du modèle
+      try {
+        const mr = await fetch(`${API}/model/info`);
+        const md = await mr.json();
+        document.getElementById('mdl').textContent = 'TF-IDF + NB';
+        document.getElementById('acc').textContent = md.accuracy ? (md.accuracy*100).toFixed(1)+'%' : '—';
+      } catch(e){}
+    }
+  } catch { setStatus(false); }
+}
+
+function setStatus(ok){
+  document.getElementById('sd').className = `dot ${ok?'g':'r'}`;
+  document.getElementById('st').textContent = ok ? 'online' : 'hors ligne';
+  const bd = document.getElementById('badge-dot');
+  bd.className = `dot ${ok?'g':'r'}`;
+  if(ok){ bd.style.boxShadow='0 0 6px var(--gr)'; }
+  else   { bd.style.boxShadow='none'; }
+  document.getElementById('badge-lbl').textContent = ok ? 'API connectée' : 'API hors ligne';
+  document.getElementById('ep').textContent = window.location.host + '/predict';
+}
+
+checkHealth();
+setInterval(checkHealth, 30000);
+
+// ── Examples ──────────────────────────────────────────────────────────────────
+function useEx(text){ inp.value=text; inp.style.height='auto'; inp.style.height=Math.min(inp.scrollHeight,110)+'px'; inp.focus(); }
+
+// ── DOM helpers ───────────────────────────────────────────────────────────────
+const msgsEl = document.getElementById('msgs');
+
+function hideEmpty(){ const e=document.getElementById('empty'); if(e)e.remove(); }
+
+function esc(s){ return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+function addUser(text){
+  hideEmpty();
+  const d=document.createElement('div');
+  d.className='row user';
+  d.innerHTML=`<div class="av">👤</div><div class="body"><div class="bubble">${esc(text)}</div></div>`;
+  msgsEl.appendChild(d); scroll();
+}
+
+function showTyping(){
+  hideEmpty();
+  const d=document.createElement('div');
+  d.className='row bot'; d.id='typing';
+  d.innerHTML=`<div class="av">🛡️</div><div class="body"><div class="typing"><span></span><span></span><span></span></div></div>`;
+  msgsEl.appendChild(d); scroll();
+}
+
+function rmTyping(){ const t=document.getElementById('typing'); if(t)t.remove(); }
+
+function addResult(data, ms){
+  const sp = data.is_spam;
+  const barW = Math.round(data.spam_probability*100);
+  const pct  = Math.round((sp ? data.spam_probability : data.ham_probability)*100);
+  const reason = sp
+    ? 'Caractéristiques de spam détectées : mots-clés suspects, ton urgent ou offre trop belle.'
+    : 'Aucune caractéristique suspecte. Message considéré comme légitime.';
+  const d=document.createElement('div');
+  d.className='row bot';
+  d.innerHTML=`
+    <div class="av">🛡️</div>
+    <div class="body">
+      <div class="rcard ${data.label}">
+        <div class="rh">
+          <div class="rv">${sp?'🚨':'✅'} ${sp?'SPAM':'HAM'}</div>
+          <div class="rc">${pct}%</div>
+        </div>
+        <div class="bar-t"><div class="bar-f" style="width:${barW}%"></div></div>
+        <div class="reason">${reason}</div>
+        <div class="rmeta">
+          <div class="mi"><span class="mk">spam </span><span class="mv">${Math.round(data.spam_probability*100)}%</span></div>
+          <div class="mi"><span class="mk">ham </span><span class="mv">${Math.round(data.ham_probability*100)}%</span></div>
+          <div class="mi"><span class="mk">temps </span><span class="mv">${Math.round(ms)}ms</span></div>
+        </div>
+      </div>
+    </div>`;
+  msgsEl.appendChild(d); scroll();
+}
+
+function addError(msg){
+  const d=document.createElement('div');
+  d.className='row bot';
+  d.innerHTML=`<div class="av">🛡️</div><div class="body"><div class="bubble" style="color:var(--rd)">${esc(msg)}</div></div>`;
+  msgsEl.appendChild(d); scroll();
+}
+
+function scroll(){ msgsEl.scrollTop=msgsEl.scrollHeight; }
+
+function updateStats(label, ms){
+  stats.total++; if(label==='spam') stats.spam++; else stats.ham++;
+  document.getElementById('s-total').textContent=stats.total;
+  document.getElementById('s-spam').textContent=stats.spam;
+  document.getElementById('s-ham').textContent=stats.ham;
+  if(ms) document.getElementById('s-ms').textContent=Math.round(ms);
+}
+
+// ── Send ──────────────────────────────────────────────────────────────────────
+async function send(){
+  const text=inp.value.trim(); if(!text) return;
+  inp.value=''; inp.style.height='auto';
+  document.getElementById('send-btn').disabled=true;
+  addUser(text); showTyping();
+  const t0=performance.now();
+  try {
+    const res = await fetch(`${API}/predict`,{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({text})
+    });
+    if(!res.ok){ const e=await res.json().catch(()=>({})); throw new Error(e.detail||`HTTP ${res.status}`); }
+    const data = await res.json();
+    const ms   = data.inference_time_ms || (performance.now()-t0);
+    rmTyping(); addResult(data, ms); updateStats(data.label, ms);
+  } catch(e){
+    rmTyping();
+    const offline = e.message.includes('fetch')||e.message.includes('Failed')||e.message.includes('NetworkError');
+    addError(offline
+      ? '⚠️ Impossible de joindre l\'API. Lance le serveur : uvicorn src.app:app --port 8000'
+      : `⚠️ Erreur : ${e.message}`);
+  }
+  document.getElementById('send-btn').disabled=false;
+  inp.focus();
+}
+</script>
+</body>
+</html>

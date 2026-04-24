@@ -1,0 +1,20 @@
+# Lance Jenkins + accès au Docker hôte pour les builds
+version: "3.9"
+services:
+  jenkins:
+    image: jenkins/jenkins:lts
+    container_name: jenkins
+    restart: unless-stopped
+    ports:
+      - "8085:8080"    # Interface web
+      - "50000:50000"  # Agents Jenkins
+    volumes:
+      - jenkins-data:/var/jenkins_home
+      # Donne accès au Docker du host pour builder les images
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      - JAVA_OPTS=-Djenkins.install.runSetupWizard=false -Xmx1g
+    user: root  # requis pour accéder au socket Docker
+
+volumes:
+  jenkins-data:
