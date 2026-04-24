@@ -10,8 +10,8 @@ pipeline {
 
     // ── Variables ─────────────────────────────────────────────────────────
     environment {
-        // Détection automatique de l'IP réseau
-        HARBOR_HOST  = sh(script: "hostname -I | awk '{print \$1}'", returnStdout: true).trim()
+        // Détection de l'IP LAN (évite l'IP interne Docker 172.x.x.x)
+        HARBOR_HOST  = sh(script: "ip route get 1.1.1.1 | grep -oP 'src \\K\\S+' || hostname -I | awk '{print \$1}'", returnStdout: true).trim()
         IMAGE_NAME   = "spam-detector/spam-api"
         IMAGE_TAG    = "${env.GIT_COMMIT ? env.GIT_COMMIT[0..7] : env.BUILD_ID}"
         HARBOR_CREDS = credentials('harbor-credentials')
@@ -164,12 +164,13 @@ except Exception as e:
     pd.DataFrame(data).to_csv('data/spam.csv', index=False, encoding='latin-1')
     print('Dataset fallback OK')
 "
-                                python3 -c "
+python3 -c "
 import sys; sys.path.insert(0, 'src')
 from train import train
 m = train(data_path='data/spam.csv', model_path='model/spam_model.pkl')
-print(f'Accuracy : {m[\"accuracy\"]}')
-assert m['accuracy'] >= 0.85, f'ECHEC — Accuracy trop basse : {m[\"accuracy\"]} < 0.85'
+acc = m.get('accuracy', 0)
+print(f'Accuracy : {acc}')
+assert acc >= 0.85, f'ECHEC — Accuracy trop basse : {acc} < 0.85'
 print('Qualite ML validee')
 "
                             '''
