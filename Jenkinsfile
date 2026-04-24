@@ -10,8 +10,9 @@ pipeline {
 
     // ── Variables ─────────────────────────────────────────────────────────
     environment {
-        // Détection de l'IP LAN (évite l'IP interne Docker 172.x.x.x)
-        HARBOR_HOST  = sh(script: "ip route get 1.1.1.1 | grep -oP 'src \\K\\S+' || hostname -I | awk '{print \$1}'", returnStdout: true).trim()
+        // Détection de l'IP LAN + force le port 80 pour HTTP
+        RAW_IP       = sh(script: "docker run --rm --net=host alpine hostname -I | awk '{print \$1}'", returnStdout: true).trim()
+        HARBOR_HOST  = "${RAW_IP}:80"
         IMAGE_NAME   = "spam-detector/spam-api"
         IMAGE_TAG    = "${env.GIT_COMMIT ? env.GIT_COMMIT[0..7] : env.BUILD_ID}"
         HARBOR_CREDS = credentials('harbor-credentials')
