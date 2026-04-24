@@ -6,7 +6,7 @@
 
 pipeline {
 
-    agent any
+    agent none
 
     // ── Variables ─────────────────────────────────────────────────────────
     environment {
@@ -47,6 +47,9 @@ pipeline {
             parallel {
 
                 stage('flake8 — style PEP8') {
+                    agent {
+                        docker { image 'python:3.11-slim' }
+                    }
                     steps {
                         sh '''
                             pip install flake8 --quiet --user
@@ -60,6 +63,9 @@ pipeline {
                 }
 
                 stage('black — formatage') {
+                    agent {
+                        docker { image 'python:3.11-slim' }
+                    }
                     steps {
                         // Ne bloque pas le pipeline, juste avertissement
                         catchError(buildResult: 'SUCCESS', stageResult: 'UNSTABLE') {
@@ -79,6 +85,9 @@ pipeline {
             parallel {
 
                 stage('Tests unitaires + Coverage') {
+                    agent {
+                        docker { image 'python:3.11-slim' }
+                    }
                     steps {
                         sh '''
                             pip install -r requirements.txt --quiet --user
@@ -121,6 +130,9 @@ print('Dataset test OK')
                 }
 
                 stage('Validation qualité ML') {
+                    agent {
+                        docker { image 'python:3.11-slim' }
+                    }
                     when {
                         anyOf { branch 'main'; branch 'develop'; branch 'master' }
                     }
@@ -177,6 +189,7 @@ print('Qualite ML validee')
 
         // ── 4. BUILD DOCKER ──────────────────────────────────────────────
         stage('Build Docker') {
+            agent any
             when {
                 anyOf { branch 'main'; branch 'develop'; branch 'master' }
             }
@@ -380,7 +393,7 @@ REMOTE
                 rm -f image.tar trivy-report.* coverage.xml || true
                 docker image prune -f || true
             '''
-            cleanWs()
+            // cleanWs()
         }
         success {
             echo "Pipeline réussi — build #${env.BUILD_NUMBER} | image: ${env.IMAGE_FULL ?: 'N/A'}"
