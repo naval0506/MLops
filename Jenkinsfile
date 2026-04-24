@@ -10,18 +10,19 @@ pipeline {
 
     // ── Variables ─────────────────────────────────────────────────────────
     environment {
+        // Détection automatique de l'IP réseau
+        HARBOR_HOST  = sh(script: "hostname -I | awk '{print \$1}'", returnStdout: true).trim()
         IMAGE_NAME   = "spam-detector/spam-api"
         IMAGE_TAG    = "${env.GIT_COMMIT ? env.GIT_COMMIT[0..7] : env.BUILD_ID}"
         HARBOR_CREDS = credentials('harbor-credentials')
-        HARBOR_HOST  = "${env.HARBOR_HOST ?: '192.168.4.203'}"
         
-        // Déploiement
-        STAGING_HOST = "${env.STAGING_HOST ?: '127.0.0.1'}"
+        // Déploiement (utilise l'IP détectée par défaut)
+        STAGING_HOST = "${env.STAGING_HOST ?: HARBOR_HOST}"
         STAGING_USER = "${env.STAGING_USER ?: 'valkely'}"
-        STAGING_PATH = "${env.STAGING_PATH ?: '/opt/spam-detector'}"
-        PROD_HOST     = "${env.PROD_HOST ?: '127.0.0.1'}"
+        STAGING_PATH = "${env.STAGING_PATH ?: '/home/valkely/deploy/staging'}"
+        PROD_HOST     = "${env.PROD_HOST ?: HARBOR_HOST}"
         PROD_USER     = "${env.PROD_USER ?: 'valkely'}"
-        PROD_PATH     = "${env.PROD_PATH ?: '/opt/spam-detector'}"
+        PROD_PATH     = "${env.PROD_PATH ?: '/home/valkely/deploy/prod'}"
     }
 
     options {
