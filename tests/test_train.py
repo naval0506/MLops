@@ -4,19 +4,18 @@ Tests unitaires - Module d'entraînement
 
 import os
 import pickle
-import tempfile
+import sys
 import pytest
 import pandas as pd
-from unittest.mock import patch, MagicMock
 
 # Ajout du chemin src au path
-import sys
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
 from train import build_pipeline, load_data, train
 
 
 # ── Fixtures ──────────────────────────────────────────────────────────────────
+
 
 @pytest.fixture
 def sample_csv(tmp_path):
@@ -29,12 +28,15 @@ def sample_csv(tmp_path):
             "Can you send me the report please",
             "I'll call you back in 5 minutes",
             "Thanks for your help yesterday",
-        ] * 16 + [
+        ]
+        * 16
+        + [
             "FREE prize click now to win",
             "Congratulations you have been selected",
             "URGENT claim your reward immediately",
             "Win cash now call this number",
-        ] * 5,
+        ]
+        * 5,
     }
     df = pd.DataFrame(data)
     csv_path = tmp_path / "spam.csv"
@@ -43,6 +45,7 @@ def sample_csv(tmp_path):
 
 
 # ── Tests load_data ───────────────────────────────────────────────────────────
+
 
 def test_load_data_shape(sample_csv):
     df = load_data(sample_csv)
@@ -62,6 +65,7 @@ def test_load_data_no_nulls(sample_csv):
 
 
 # ── Tests build_pipeline ──────────────────────────────────────────────────────
+
 
 def test_pipeline_has_tfidf_and_clf():
     pipe = build_pipeline()
@@ -89,6 +93,7 @@ def test_pipeline_predict_proba(sample_csv):
 
 
 # ── Tests train ───────────────────────────────────────────────────────────────
+
 
 def test_train_returns_metrics(sample_csv, tmp_path):
     model_path = str(tmp_path / "model.pkl")

@@ -4,8 +4,6 @@ Tests unitaires - API FastAPI
 
 import os
 import sys
-import pickle
-import tempfile
 import pytest
 from unittest.mock import patch, MagicMock
 from fastapi.testclient import TestClient
@@ -16,7 +14,9 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 # Mock du modèle avant l'import de app
 def make_mock_model():
     mock = MagicMock()
-    mock.predict.side_effect = lambda texts: [1 if "spam" in t.lower() or "free" in t.lower() else 0 for t in texts]
+    mock.predict.side_effect = lambda texts: [
+        1 if "spam" in t.lower() or "free" in t.lower() else 0 for t in texts
+    ]
     mock.predict_proba.side_effect = lambda texts: [
         [0.1, 0.9] if ("spam" in t.lower() or "free" in t.lower()) else [0.95, 0.05]
         for t in texts
@@ -27,14 +27,17 @@ def make_mock_model():
 @pytest.fixture
 def client():
     mock_model = make_mock_model()
-    with patch("predict.load_model", return_value=mock_model), \
-         patch("app.load_model", return_value=mock_model):
+    with patch("predict.load_model", return_value=mock_model), patch(
+        "app.load_model", return_value=mock_model
+    ):
         from app import app
+
         with TestClient(app) as c:
             yield c
 
 
 # ── Tests Health ──────────────────────────────────────────────────────────────
+
 
 def test_health_ok(client):
     response = client.get("/health")
@@ -51,6 +54,7 @@ def test_root(client):
 
 # ── Tests Predict ─────────────────────────────────────────────────────────────
 
+
 def test_predict_ham(client):
     response = client.post("/predict", json={"text": "Hey, how are you today?"})
     assert response.status_code == 200
@@ -62,7 +66,9 @@ def test_predict_ham(client):
 
 
 def test_predict_spam(client):
-    response = client.post("/predict", json={"text": "FREE prize! Click now to claim your reward!"})
+    response = client.post(
+        "/predict", json={"text": "FREE prize! Click now to claim your reward!"}
+    )
     assert response.status_code == 200
     data = response.json()
     assert data["label"] == "spam"
@@ -86,6 +92,7 @@ def test_predict_missing_field(client):
 
 
 # ── Tests Batch Predict ───────────────────────────────────────────────────────
+
 
 def test_predict_batch(client):
     texts = [
@@ -113,6 +120,7 @@ def test_predict_batch_single(client):
 
 
 # ── Tests Metrics ─────────────────────────────────────────────────────────────
+
 
 def test_metrics_endpoint(client):
     response = client.get("/metrics")

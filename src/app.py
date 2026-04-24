@@ -1,6 +1,9 @@
 """Spam Detection API — FastAPI (sert aussi l'interface web)."""
 
-import os, time, json, logging
+import os
+import time
+import json
+import logging
 from contextlib import asynccontextmanager
 from typing import List
 
@@ -12,21 +15,30 @@ from pydantic import BaseModel, Field
 
 from predict import load_model, predict_single, predict_batch
 
-logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+)
 logger = logging.getLogger(__name__)
 
-MODEL_PATH  = os.getenv("MODEL_PATH",  "model/spam_model.pkl")
+MODEL_PATH = os.getenv("MODEL_PATH", "model/spam_model.pkl")
 METRICS_PATH = os.getenv("METRICS_PATH", "model/metrics.json")
-STATIC_DIR  = os.path.join(os.path.dirname(__file__), "static")
+STATIC_DIR = os.path.join(os.path.dirname(__file__), "static")
 
 # ── Pydantic schemas ──────────────────────────────────────────────────────────
 
+
 class PredictRequest(BaseModel):
-    text: str = Field(..., min_length=1, max_length=5000,
-                      example="Congratulations! You won a FREE prize!")
+    text: str = Field(
+        ...,
+        min_length=1,
+        max_length=5000,
+        example="Congratulations! You won a FREE prize!",
+    )
+
 
 class BatchPredictRequest(BaseModel):
     texts: List[str] = Field(..., min_length=1, max_length=100)
+
 
 class PredictResponse(BaseModel):
     text: str
@@ -36,12 +48,15 @@ class PredictResponse(BaseModel):
     ham_probability: float
     inference_time_ms: float
 
+
 class HealthResponse(BaseModel):
     status: str
     model_loaded: bool
     version: str
 
+
 # ── Lifespan ──────────────────────────────────────────────────────────────────
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -54,6 +69,7 @@ async def lifespan(app: FastAPI):
     yield
     logger.info("Arrêt API.")
 
+
 # ── App ───────────────────────────────────────────────────────────────────────
 
 app = FastAPI(
@@ -63,12 +79,15 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
+app.add_middleware(
+    CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"]
+)
 
 if os.path.isdir(STATIC_DIR):
     app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
 # ── Routes ────────────────────────────────────────────────────────────────────
+
 
 @app.get("/", include_in_schema=False)
 async def root():
@@ -84,8 +103,9 @@ async def health():
         model_ok = load_model(MODEL_PATH) is not None
     except Exception:
         model_ok = False
-    return HealthResponse(status="ok" if model_ok else "degraded",
-                          model_loaded=model_ok, version="1.0.0")
+    return HealthResponse(
+        status="ok" if model_ok else "degraded", model_loaded=model_ok, version="1.0.0"
+    )
 
 
 @app.get("/model/info", tags=["Monitoring"])
@@ -104,10 +124,12 @@ async def predict(request: PredictRequest):
         model = load_model(MODEL_PATH)
     except FileNotFoundError as e:
         raise HTTPException(status_code=503, detail=str(e))
-    t0     = time.perf_counter()
+    t0 = time.perf_counter()
     result = predict_single(request.text, model=model)
-    ms     = round((time.perf_counter() - t0) * 1000, 3)
-    logger.info(f"[PREDICT] {result['label']} {result['spam_probability']} | {request.text[:80]}")
+    ms = round((time.perf_counter() - t0) * 1000, 3)
+    logger.info(
+        f"[PREDICT] {result['label']} {result['spam_probability']} | {request.text[:80]}"
+    )
     return PredictResponse(**result, inference_time_ms=ms)
 
 
@@ -118,9 +140,9 @@ async def predict_batch_endpoint(request: BatchPredictRequest):
         model = load_model(MODEL_PATH)
     except FileNotFoundError as e:
         raise HTTPException(status_code=503, detail=str(e))
-    t0      = time.perf_counter()
+    t0 = time.perf_counter()
     results = predict_batch(request.texts, model=model)
-    ms      = round((time.perf_counter() - t0) * 1000, 3)
+    ms = round((time.perf_counter() - t0) * 1000, 3)
     return {"results": results, "count": len(results), "inference_time_ms": ms}
 
 
