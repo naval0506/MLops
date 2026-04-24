@@ -97,3 +97,4 @@ volumes:
 networks:
   spam-net:
     driver: bridge
+    
