@@ -6,7 +6,7 @@
 
 pipeline {
 
-    agent none
+    agent any
 
     // ── Variables ─────────────────────────────────────────────────────────
     environment {
@@ -189,7 +189,6 @@ print('Qualite ML validee')
 
         // ── 4. BUILD DOCKER ──────────────────────────────────────────────
         stage('Build Docker') {
-            agent any
             when {
                 anyOf { branch 'main'; branch 'develop'; branch 'master' }
             }
