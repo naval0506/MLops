@@ -10,9 +10,9 @@ pipeline {
 
     // ── Variables ─────────────────────────────────────────────────────────
     environment {
-        // Utilise debian pour avoir la commande hostname -I complète
-        RAW_IP       = sh(script: "docker run --rm --net=host debian:stable-slim hostname -I | awk '{print \$1}'", returnStdout: true).trim()
-        HARBOR_HOST  = "${RAW_IP}:80"
+        // Utilisation de localhost (127.0.0.1) car Harbor est sur la même machine
+        // Docker autorise le HTTP (non-HTTPS) par défaut sur localhost.
+        HARBOR_HOST  = "127.0.0.1:80"
         IMAGE_NAME   = "spam-detector/spam-api"
         IMAGE_TAG    = "${env.GIT_COMMIT ? env.GIT_COMMIT[0..7] : env.BUILD_ID}"
         HARBOR_CREDS = credentials('harbor-credentials')

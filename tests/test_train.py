@@ -22,21 +22,8 @@ def sample_csv(tmp_path):
     """Crée un fichier CSV minimal simulant le dataset UCI."""
     data = {
         "v1": ["ham"] * 80 + ["spam"] * 20,
-        "v2": [
-            "Hey how are you doing today",
-            "Let's meet for coffee tomorrow",
-            "Can you send me the report please",
-            "I'll call you back in 5 minutes",
-            "Thanks for your help yesterday",
-        ]
-        * 16
-        + [
-            "FREE prize click now to win",
-            "Congratulations you have been selected",
-            "URGENT claim your reward immediately",
-            "Win cash now call this number",
-        ]
-        * 5,
+        "v2": ["Normal message number " + str(i) for i in range(80)]
+        + ["FREE prize win now click " + str(i) for i in range(20)],
     }
     df = pd.DataFrame(data)
     csv_path = tmp_path / "spam.csv"
