@@ -54,7 +54,7 @@ pipeline {
                         sh '''
                             pip install flake8 --quiet --user
                             echo "==> flake8 (style)..."
-                            python3 -m flake8 src/ tests/ --max-line-length=120 --ignore=E501,E402 --exclude=__pycache__
+                            python3 -m flake8 src/ tests/ --max-line-length=120 --ignore=E501,E402,W503 --exclude=__pycache__
                         '''
                     }
                 }
