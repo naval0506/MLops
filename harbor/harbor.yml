@@ -1,5 +1,5 @@
 # Configuration file of Harbor
-hostname: 192.168.109.71
+hostname: 192.168.4.203
 
 http:
   port: 80

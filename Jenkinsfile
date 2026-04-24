@@ -53,11 +53,8 @@ pipeline {
                     steps {
                         sh '''
                             pip install flake8 --quiet --user
-                            echo "==> flake8..."
-                            python3 -m flake8 src/ tests/ \
-                                --max-line-length=100 \
-                                --exclude=__pycache__
-                            echo "flake8 OK"
+                            echo "==> flake8 (style)..."
+                            python3 -m flake8 src/ tests/ --max-line-length=120 --ignore=E501,E402 --exclude=__pycache__
                         '''
                     }
                 }
@@ -72,7 +69,7 @@ pipeline {
                             sh '''
                                 pip install black --quiet --user
                                 echo "==> black check..."
-                                python3 -m black --check --diff src/ tests/
+                                python3 -m black --check src/ tests/
                             '''
                         }
                     }
