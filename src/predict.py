@@ -1,8 +1,8 @@
 """Spam Detection — Module de prédiction."""
 
+import logging
 import os
 import pickle
-import logging
 from functools import lru_cache
 from typing import List
 
@@ -63,5 +63,6 @@ if __name__ == "__main__":
     for s in samples:
         r = predict_single(s)
         print(
-            f"{'🚨' if r['is_spam'] else '✅'} [{r['label'].upper()}] {r['spam_probability']:.0%} spam | {s[:60]}"
+            f"{'🚨' if r['is_spam'] else '✅'} [{r['label'].upper()}] "
+            f"{r['spam_probability']:.0%} spam | {s[:60]}"
         )

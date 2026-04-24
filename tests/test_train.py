@@ -3,8 +3,8 @@ Tests unitaires - Module d'entraînement
 """
 
 import os
-import pickle
 import sys
+import pickle
 import pytest
 import pandas as pd
 
