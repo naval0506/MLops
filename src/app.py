@@ -27,13 +27,10 @@ STATIC_DIR = os.path.join(os.path.dirname(__file__), "static")
 
 # ── Métriques Prometheus ──────────────────────────────────────────────────────
 PREDICTION_COUNT = Counter(
-    "spam_api_predictions_total",
-    "Nombre total de prédictions (par label)",
-    ["label"]
+    "spam_api_predictions_total", "Nombre total de prédictions (par label)", ["label"]
 )
 LATENCY_HISTOGRAM = Histogram(
-    "spam_api_inference_latency_seconds",
-    "Temps de réponse de l'inférence"
+    "spam_api_inference_latency_seconds", "Temps de réponse de l'inférence"
 )
 
 # ── Pydantic schemas ──────────────────────────────────────────────────────────
@@ -146,7 +143,7 @@ async def predict(request: PredictRequest):
 
     # Maj métriques Prometheus
     LATENCY_HISTOGRAM.observe(latency)
-    PREDICTION_COUNT.labels(label=result['label']).inc()
+    PREDICTION_COUNT.labels(label=result["label"]).inc()
 
     ms = round(latency * 1000, 3)
     logger.info(
@@ -169,7 +166,7 @@ async def predict_batch_endpoint(request: BatchPredictRequest):
     # Maj métriques Prometheus
     LATENCY_HISTOGRAM.observe(latency)
     for res in results:
-        PREDICTION_COUNT.labels(label=res['label']).inc()
+        PREDICTION_COUNT.labels(label=res["label"]).inc()
 
     ms = round(latency * 1000, 3)
     return {"results": results, "count": len(results), "inference_time_ms": ms}

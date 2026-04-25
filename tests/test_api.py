@@ -125,4 +125,4 @@ def test_predict_batch_single(client):
 def test_metrics_endpoint(client):
     response = client.get("/metrics")
     assert response.status_code == 200
-    assert "spam_api_up" in response.text
+    assert "spam_api_predictions_total" in response.text
