@@ -170,4 +170,3 @@ async def predict_batch_endpoint(request: BatchPredictRequest):
 
     ms = round(latency * 1000, 3)
     return {"results": results, "count": len(results), "inference_time_ms": ms}
-    
