@@ -11,7 +11,7 @@ pipeline {
     // ── Variables ─────────────────────────────────────────────────────────
     environment {
         // Lecture de l'IP directement dans la configuration Harbor pour être sûr de la cohérence
-        HARBOR_IP    = "${sh(script: \"grep 'hostname:' harbor/harbor.yml | awk '{print \$2}'\", returnStdout: true).trim()}"
+        HARBOR_IP    = sh(script: "grep 'hostname:' harbor/harbor.yml | awk '{print \$2}'", returnStdout: true).trim()
         HARBOR_HOST  = "${HARBOR_IP}:80"
         IMAGE_NAME   = "spam-detector/spam-api"
         IMAGE_TAG    = "${env.GIT_COMMIT ? env.GIT_COMMIT[0..7] : env.BUILD_ID}"

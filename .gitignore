@@ -17,3 +17,8 @@ build/
 image.tar
 trivy-report.*
 test-results.xml
+
+# Harbor generated config and binaries
+harbor/common/
+harbor/docker-compose.yml
+harbor-online-installer-*.tgz
