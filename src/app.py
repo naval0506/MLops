@@ -9,9 +9,10 @@ from typing import List
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, PlainTextResponse
+from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
+from prometheus_client import make_asgi_app, Counter, Histogram
 
 from predict import load_model, predict_single, predict_batch
 
@@ -23,6 +24,17 @@ logger = logging.getLogger(__name__)
 MODEL_PATH = os.getenv("MODEL_PATH", "model/spam_model.pkl")
 METRICS_PATH = os.getenv("METRICS_PATH", "model/metrics.json")
 STATIC_DIR = os.path.join(os.path.dirname(__file__), "static")
+
+# ── Métriques Prometheus ──────────────────────────────────────────────────────
+PREDICTION_COUNT = Counter(
+    "spam_api_predictions_total",
+    "Nombre total de prédictions (par label)",
+    ["label"]
+)
+LATENCY_HISTOGRAM = Histogram(
+    "spam_api_inference_latency_seconds",
+    "Temps de réponse de l'inférence"
+)
 
 # ── Pydantic schemas ──────────────────────────────────────────────────────────
 
@@ -83,6 +95,10 @@ app.add_middleware(
     CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"]
 )
 
+# Routeur Prometheus
+metrics_app = make_asgi_app()
+app.mount("/metrics", metrics_app)
+
 if os.path.isdir(STATIC_DIR):
     app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
@@ -126,7 +142,13 @@ async def predict(request: PredictRequest):
         raise HTTPException(status_code=503, detail=str(e))
     t0 = time.perf_counter()
     result = predict_single(request.text, model=model)
-    ms = round((time.perf_counter() - t0) * 1000, 3)
+    latency = time.perf_counter() - t0
+    
+    # Maj métriques Prometheus
+    LATENCY_HISTOGRAM.observe(latency)
+    PREDICTION_COUNT.labels(label=result['label']).inc()
+    
+    ms = round(latency * 1000, 3)
     logger.info(
         f"[PREDICT] {result['label']} {result['spam_probability']} | {request.text[:80]}"
     )
@@ -142,13 +164,15 @@ async def predict_batch_endpoint(request: BatchPredictRequest):
         raise HTTPException(status_code=503, detail=str(e))
     t0 = time.perf_counter()
     results = predict_batch(request.texts, model=model)
-    ms = round((time.perf_counter() - t0) * 1000, 3)
+    latency = time.perf_counter() - t0
+    
+    # Maj métriques Prometheus
+    LATENCY_HISTOGRAM.observe(latency)
+    for res in results:
+        PREDICTION_COUNT.labels(label=res['label']).inc()
+        
+    ms = round(latency * 1000, 3)
     return {"results": results, "count": len(results), "inference_time_ms": ms}
 
 
-@app.get("/metrics", tags=["Monitoring"])
-async def metrics():
-    return PlainTextResponse(
-        "# HELP spam_api_up API is running\n"
-        "# TYPE spam_api_up gauge\nspam_api_up 1\n"
-    )
+

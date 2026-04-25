@@ -299,26 +299,29 @@ print('Qualite ML validee')
             steps {
                 sshagent(credentials: ['staging-ssh-key']) {
                     sh """
+                        echo "==> Préparation des fichiers sur ${STAGING_HOST}..."
+                        ssh -o StrictHostKeyChecking=no ${STAGING_USER}@${STAGING_HOST} "mkdir -p ${STAGING_PATH}"
+                        scp -o StrictHostKeyChecking=no docker-compose.prod.yml ${STAGING_USER}@${STAGING_HOST}:${STAGING_PATH}/docker-compose.yml
+                        scp -o StrictHostKeyChecking=no .env.example ${STAGING_USER}@${STAGING_HOST}:${STAGING_PATH}/.env
+                        scp -o StrictHostKeyChecking=no -r monitoring ${STAGING_USER}@${STAGING_HOST}:${STAGING_PATH}/
+
                         echo "==> Déploiement staging sur ${STAGING_HOST}..."
                         ssh -o StrictHostKeyChecking=no \\
                             ${STAGING_USER}@${STAGING_HOST} << 'REMOTE'
                             set -e
-                            mkdir -p ${STAGING_PATH} || true
                             cd ${STAGING_PATH}
 
-                            # Arrêter l'ancien container s'il existe
-                            docker stop spam-staging 2>/dev/null || true
-                            docker rm spam-staging 2>/dev/null || true
+                            # Injecter les variables dynamiques dans le .env
+                            sed -i "s|IMAGE_TAG=.*|IMAGE_TAG=${IMAGE_TAG}|" .env
+                            sed -i "s|HARBOR_HOST=.*|HARBOR_HOST=${HARBOR_HOST}|" .env
 
                             # Connexion Harbor et pull
                             echo "${HARBOR_CREDS_PSW}" | docker login "${HARBOR_HOST}" \\
                                 -u "${HARBOR_CREDS_USR}" --password-stdin
 
-                            # Lancer le nouveau container
-                            docker run -d \\
-                                --name spam-staging \\
-                                -p 8000:8000 \\
-                                ${HARBOR_HOST}/${IMAGE_NAME}:${IMAGE_TAG}
+                            # Lancer la stack avec Compose
+                            docker compose pull
+                            docker compose up -d
 
                             echo "Attente démarrage..."
                             sleep 15
@@ -351,22 +354,27 @@ REMOTE
                     sh """
                         echo "==> Déploiement production sur ${PROD_HOST}..."
                         echo "==> Motif : ${DEPLOY_REASON}"
+                        echo "==> Préparation des fichiers sur ${PROD_HOST}..."
+                        ssh -o StrictHostKeyChecking=no ${PROD_USER}@${PROD_HOST} "mkdir -p ${PROD_PATH}"
+                        scp -o StrictHostKeyChecking=no docker-compose.prod.yml ${PROD_USER}@${PROD_HOST}:${PROD_PATH}/docker-compose.yml
+                        scp -o StrictHostKeyChecking=no .env.example ${PROD_USER}@${PROD_HOST}:${PROD_PATH}/.env
+                        scp -o StrictHostKeyChecking=no -r monitoring ${PROD_USER}@${PROD_HOST}:${PROD_PATH}/
+
+                        echo "==> Déploiement production sur ${PROD_HOST}..."
                         ssh -o StrictHostKeyChecking=no \\
                             ${PROD_USER}@${PROD_HOST} << 'REMOTE'
                             set -e
-                            mkdir -p ${PROD_PATH} || true
                             cd ${PROD_PATH}
 
-                            docker stop spam-prod 2>/dev/null || true
-                            docker rm spam-prod 2>/dev/null || true
+                            # Injecter les variables dynamiques dans le .env
+                            sed -i "s|IMAGE_TAG=.*|IMAGE_TAG=${IMAGE_TAG}|" .env
+                            sed -i "s|HARBOR_HOST=.*|HARBOR_HOST=${HARBOR_HOST}|" .env
 
                             echo "${HARBOR_CREDS_PSW}" | docker login "${HARBOR_HOST}" \\
                                 -u "${HARBOR_CREDS_USR}" --password-stdin
 
-                            docker run -d \\
-                                --name spam-prod \\
-                                -p 8000:8000 \\
-                                ${HARBOR_HOST}/${IMAGE_NAME}:${IMAGE_TAG}
+                            docker compose pull
+                            docker compose up -d
 
                             sleep 15
                             curl -sf http://localhost:8000/health || echo "Warning: Health check timeout"
