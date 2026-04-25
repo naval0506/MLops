@@ -11,7 +11,7 @@ pipeline {
     // ── Variables ─────────────────────────────────────────────────────────
     environment {
         HARBOR_IP    = sh(script: "grep 'hostname:' harbor/harbor.yml | awk '{print \$2}'", returnStdout: true).trim()
-        HARBOR_HOST  = "${HARBOR_IP}:80"
+        HARBOR_HOST  = "${HARBOR_IP}:443"
         IMAGE_NAME   = "spam-detector/spam-api"
         IMAGE_TAG    = "${env.GIT_COMMIT ? env.GIT_COMMIT[0..7] : env.BUILD_ID}"
         HARBOR_CREDS = credentials('harbor-credentials')
@@ -387,4 +387,4 @@ REMOTE
             echo "⚠️ Pipeline INSTABLE (lint warning) — build #${env.BUILD_NUMBER}"
         }
     }
-}
+}   
