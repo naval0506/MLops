@@ -143,11 +143,11 @@ async def predict(request: PredictRequest):
     t0 = time.perf_counter()
     result = predict_single(request.text, model=model)
     latency = time.perf_counter() - t0
-    
+
     # Maj métriques Prometheus
     LATENCY_HISTOGRAM.observe(latency)
     PREDICTION_COUNT.labels(label=result['label']).inc()
-    
+
     ms = round(latency * 1000, 3)
     logger.info(
         f"[PREDICT] {result['label']} {result['spam_probability']} | {request.text[:80]}"
@@ -165,14 +165,11 @@ async def predict_batch_endpoint(request: BatchPredictRequest):
     t0 = time.perf_counter()
     results = predict_batch(request.texts, model=model)
     latency = time.perf_counter() - t0
-    
+
     # Maj métriques Prometheus
     LATENCY_HISTOGRAM.observe(latency)
     for res in results:
         PREDICTION_COUNT.labels(label=res['label']).inc()
-        
+
     ms = round(latency * 1000, 3)
     return {"results": results, "count": len(results), "inference_time_ms": ms}
-
-
-
