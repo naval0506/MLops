@@ -5,10 +5,10 @@ http:
   port: 80
 
 # https related config
-# https:
-#   port: 443
-#   certificate: /your/certificate/path
-#   private_key: /your/private/key/path
+https:
+  port: 443
+  certificate: /media/valkely/DATA/devopsmandeha/spam-mlops/harbor/certs/server.crt
+  private_key: /media/valkely/DATA/devopsmandeha/spam-mlops/harbor/certs/server.key
 
 harbor_admin_password: Valkely0202
 
