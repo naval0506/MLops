@@ -1,0 +1,12 @@
+# Runtime dependencies only. Dev/test tools stay in requirements.txt.
+fastapi>=0.115.6,<1.0.0
+starlette>=0.40.0
+uvicorn[standard]==0.30.6
+pydantic==2.9.2
+aiofiles==24.1.0
+prometheus-client==0.20.0
+
+# ML runtime
+scikit-learn==1.5.2
+pandas==2.2.3
+numpy==1.26.4

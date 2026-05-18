@@ -1,15 +1,19 @@
 # ── Stage 1 : builder ─────────────────────────────────────────────────────────
 FROM python:3.11-slim AS builder
 WORKDIR /build
-RUN apt-get update && apt-get install -y --no-install-recommends gcc && rm -rf /var/lib/apt/lists/*
-COPY requirements.txt .
-RUN pip install --upgrade pip && pip install --no-cache-dir --prefix=/install -r requirements.txt
+COPY requirements-runtime.txt .
+RUN pip install --upgrade pip setuptools wheel \
+    && pip install --no-cache-dir --prefix=/install -r requirements-runtime.txt
 
 # ── Stage 2 : runner ──────────────────────────────────────────────────────────
 FROM python:3.11-slim AS runner
 LABEL maintainer="MLOps Team" description="Spam Detector API" version="1.0.0"
 
-RUN groupadd -r appuser && useradd -r -g appuser appuser
+RUN apt-get update \
+    && apt-get upgrade -y \
+    && rm -rf /var/lib/apt/lists/* \
+    && groupadd -r appuser \
+    && useradd -r -g appuser appuser
 WORKDIR /app
 
 COPY --from=builder /install /usr/local
