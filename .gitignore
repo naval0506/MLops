@@ -5,8 +5,7 @@ __pycache__/
 venv/
 model/*.pkl
 model/*.json
-data/spam.csv
-data/SMSSpamCollection
+data/.gitkeep
 .cache/
 coverage.xml
 coverage-html/
