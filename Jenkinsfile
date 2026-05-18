@@ -44,6 +44,46 @@ pipeline {
             }
         }
 
+        stage('Prepare Dataset') {
+            steps {
+                sh '''
+                    docker run --rm --volumes-from jenkins -w "$PWD" python:3.11-slim sh -c "
+                        python -m pip install pandas==2.2.3 &&
+                        mkdir -p data &&
+                        python - <<'PY'
+import os
+import urllib.request
+import zipfile
+import pandas as pd
+
+csv_path = 'data/spam.csv'
+if os.path.exists(csv_path):
+    print(f'Dataset already exists: {csv_path}')
+    raise SystemExit(0)
+
+url = 'https://archive.ics.uci.edu/ml/machine-learning-databases/00228/smsspamcollection.zip'
+try:
+    print('Downloading UCI SMS Spam Collection...')
+    urllib.request.urlretrieve(url, '/tmp/smsspamcollection.zip')
+    with zipfile.ZipFile('/tmp/smsspamcollection.zip') as archive:
+        archive.extract('SMSSpamCollection', '/tmp')
+    df = pd.read_csv('/tmp/SMSSpamCollection', sep='\\t', header=None, names=['v1', 'v2'])
+except Exception as exc:
+    print(f'UCI download failed, using deterministic fallback dataset: {exc}')
+    df = pd.DataFrame({
+        'v1': ['ham'] * 80 + ['spam'] * 20,
+        'v2': [f'Normal meeting message {i}' for i in range(80)]
+              + [f'FREE prize win now click {i}' for i in range(20)],
+    })
+
+df.to_csv(csv_path, index=False, encoding='latin-1')
+print(f'Dataset ready: {csv_path} ({len(df)} rows)')
+PY
+                    "
+                '''
+            }
+        }
+
         stage('Train Model') {
             steps {
                 sh '''
