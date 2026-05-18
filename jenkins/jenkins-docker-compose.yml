@@ -14,7 +14,7 @@ services:
       - /usr/bin/docker:/usr/bin/docker:ro
       - /usr/libexec/docker/cli-plugins/docker-compose:/usr/libexec/docker/cli-plugins/docker-compose:ro
     environment:
-      - JAVA_OPTS=-Djenkins.install.runSetupWizard=false -Xmx1g
+      - JAVA_OPTS=-Xmx1g
     user: root  # requis pour accéder au socket Docker
 
 volumes:

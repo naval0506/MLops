@@ -30,8 +30,13 @@ def load_data(path: str) -> pd.DataFrame:
     df.columns = ["label", "text"]
     df["label"] = df["label"].map({"ham": 0, "spam": 1})
     df.dropna(inplace=True)
+    spam_count = df["label"].sum()
+    ham_count = (df["label"] == 0).sum()
     logger.info(
-        f"Dataset : {len(df)} lignes | spam={df['label'].sum()} | ham={(df['label']==0).sum()}"
+        "Dataset : %s lignes | spam=%s | ham=%s",
+        len(df),
+        spam_count,
+        ham_count,
     )
     return df
 
@@ -54,7 +59,11 @@ def build_pipeline() -> Pipeline:
     )
 
 
-def train(data_path: str = DATA_PATH, model_path: str = MODEL_PATH) -> dict:
+def train(
+    data_path: str = DATA_PATH,
+    model_path: str = MODEL_PATH,
+    metrics_path: str = METRICS_PATH,
+) -> dict:
     df = load_data(data_path)
     X_train, X_test, y_train, y_test = train_test_split(
         df["text"], df["label"], test_size=0.2, random_state=42, stratify=df["label"]
@@ -82,8 +91,8 @@ def train(data_path: str = DATA_PATH, model_path: str = MODEL_PATH) -> dict:
         "train_size": len(X_train),
         "test_size": len(X_test),
     }
-    os.makedirs(os.path.dirname(METRICS_PATH), exist_ok=True)
-    with open(METRICS_PATH, "w") as f:
+    os.makedirs(os.path.dirname(metrics_path), exist_ok=True)
+    with open(metrics_path, "w") as f:
         json.dump(metrics, f, indent=2)
 
     logger.info(f"Modèle sauvegardé : {model_path}")

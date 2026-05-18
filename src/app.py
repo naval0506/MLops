@@ -11,10 +11,13 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 from prometheus_client import make_asgi_app, Counter, Histogram
 
-from predict import load_model, predict_single, predict_batch
+try:
+    from .predict import load_model, predict_single, predict_batch
+except ImportError:
+    from predict import load_model, predict_single, predict_batch
 
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
@@ -41,7 +44,7 @@ class PredictRequest(BaseModel):
         ...,
         min_length=1,
         max_length=5000,
-        example="Congratulations! You won a FREE prize!",
+        json_schema_extra={"example": "Congratulations! You won a FREE prize!"},
     )
 
 
@@ -59,6 +62,8 @@ class PredictResponse(BaseModel):
 
 
 class HealthResponse(BaseModel):
+    model_config = ConfigDict(protected_namespaces=())
+
     status: str
     model_loaded: bool
     version: str
@@ -147,7 +152,10 @@ async def predict(request: PredictRequest):
 
     ms = round(latency * 1000, 3)
     logger.info(
-        f"[PREDICT] {result['label']} {result['spam_probability']} | {request.text[:80]}"
+        "[PREDICT] %s %s | %s",
+        result["label"],
+        result["spam_probability"],
+        request.text[:80],
     )
     return PredictResponse(**result, inference_time_ms=ms)
 

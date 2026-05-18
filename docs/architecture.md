@@ -28,22 +28,27 @@ Build **multi-stage** pour minimiser la taille de l'image :
 - Stage `builder` : compilation des dépendances Python
 - Stage `runner` : image finale allégée + utilisateur non-root
 
-### 4. Pipeline CI/CD (GitLab)
+### 4. Pipeline CI/CD (GitHub + Jenkins)
 
 ```
-commit → lint → test → build → scan → push → deploy
+push GitHub → checkout Jenkins → lint → test → train → build → scan → push → deploy
 ```
 
 - **lint** : flake8 + black
-- **test** : pytest + coverage + validation accuracy ML
-- **build** : `docker build` multi-stage avec cache Harbor
+- **test** : pytest + validation accuracy ML
+- **build** : `docker build` multi-stage
 - **scan** : Trivy (CVE HIGH/CRITICAL)
-- **push** : Harbor avec tags `SHA` + `latest` + tag sémantique
-- **deploy** : SSH → `docker compose up -d` sur staging/prod
+- **push** : Harbor ou registry compatible avec tags `BUILD_NUMBER` + `latest`
+- **deploy** : local ou SSH vers le serveur puis `docker compose -f docker-compose.prod.yml up -d`
+
+GitLab CE peut être installé en Docker pour la démonstration si nécessaire,
+mais le pipeline de ce dépôt est piloté par Jenkins depuis GitHub.
 
 ### 5. Registry (Harbor)
 
-- Scan de vulnérabilités intégré (Clair/Trivy)
+- Registry cible pour stocker les images Docker
+- Remplaçable en démo par `registry:2` sur `localhost:5000`
+- Scan de vulnérabilités via Trivy dans le pipeline Jenkins
 - Rétention d'images configurable
 - Authentification par robot account
 

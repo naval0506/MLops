@@ -27,9 +27,9 @@ Classification binaire de messages texte (SMS ou email) en deux catégories :
 | F2  | Exposer une API REST de prédiction (unitaire + batch) |
 | F3  | Servir une interface web de chat connectée à l'API |
 | F4  | Containeriser l'application via Docker multi-stage |
-| F5  | Pipeline CI/CD automatisé (GitLab + Jenkins) |
-| F6  | Registre privé Harbor avec scan de sécurité Trivy |
-| F7  | Déploiement automatique via Docker Compose + SSH |
+| F5  | Pipeline CI/CD automatisé avec Jenkins CI/CD |
+| F6  | Push vers Harbor ou registry compatible avec scan Trivy |
+| F7  | Déploiement via Docker Compose |
 | F8  | Monitoring via Prometheus + Grafana |
 
 ## 5. Exigences non fonctionnelles
@@ -46,7 +46,7 @@ Classification binaire de messages texte (SMS ou email) en deux catégories :
 | ML        | scikit-learn 1.5, TF-IDF + Multinomial Naive Bayes |
 | API       | FastAPI 0.115, Python 3.11 |
 | Interface | HTML/CSS/JS vanilla (servi par FastAPI) |
-| CI/CD     | GitLab CI + Jenkins |
-| Registre  | Harbor 2.10 + Trivy |
-| Deploy    | Docker Compose + SSH |
+| CI/CD     | Jenkins |
+| Registre  | Harbor ou registry Docker local + Trivy |
+| Deploy    | Docker Compose |
 | Monitoring| Prometheus + Grafana |

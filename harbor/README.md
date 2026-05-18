@@ -5,12 +5,13 @@ un scan de sécurité automatique (Trivy) à chaque push.
 
 ---
 
-## Option A — Harbor complet avec Trivy (recommandé)
+## Option A — Harbor complet avec Trivy
 
 ### Prérequis
 - Docker + Docker Compose installés
 - Port 80 (ou 443) libre
 - 4 Go RAM minimum
+- Connexion suffisante : Harbor télécharge plusieurs images Docker
 
 ```bash
 # 1. Télécharger Harbor
@@ -30,6 +31,8 @@ sudo ./install.sh --with-trivy
 # Harbor démarre automatiquement avec Docker Compose
 # Interface : http://TON_IP  →  admin / MotDePasseAdmin
 ```
+
+Ne pas committer `harbor.yml`, les certificats ou les mots de passe réels.
 
 ### Vérifier que Harbor tourne
 ```bash

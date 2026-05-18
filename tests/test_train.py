@@ -84,7 +84,10 @@ def test_pipeline_predict_proba(sample_csv):
 
 def test_train_returns_metrics(sample_csv, tmp_path):
     model_path = str(tmp_path / "model.pkl")
-    metrics = train(data_path=sample_csv, model_path=model_path)
+    metrics_path = str(tmp_path / "metrics.json")
+    metrics = train(
+        data_path=sample_csv, model_path=model_path, metrics_path=metrics_path
+    )
     assert "accuracy" in metrics
     assert "confusion_matrix" in metrics
     assert 0.0 <= metrics["accuracy"] <= 1.0
@@ -92,13 +95,15 @@ def test_train_returns_metrics(sample_csv, tmp_path):
 
 def test_train_saves_model(sample_csv, tmp_path):
     model_path = str(tmp_path / "model.pkl")
-    train(data_path=sample_csv, model_path=model_path)
+    metrics_path = str(tmp_path / "metrics.json")
+    train(data_path=sample_csv, model_path=model_path, metrics_path=metrics_path)
     assert os.path.exists(model_path)
 
 
 def test_train_model_loadable(sample_csv, tmp_path):
     model_path = str(tmp_path / "model.pkl")
-    train(data_path=sample_csv, model_path=model_path)
+    metrics_path = str(tmp_path / "metrics.json")
+    train(data_path=sample_csv, model_path=model_path, metrics_path=metrics_path)
     with open(model_path, "rb") as f:
         model = pickle.load(f)
     pred = model.predict(["Free prize win now click"])
@@ -107,6 +112,9 @@ def test_train_model_loadable(sample_csv, tmp_path):
 
 def test_train_accuracy_above_threshold(sample_csv, tmp_path):
     model_path = str(tmp_path / "model.pkl")
-    metrics = train(data_path=sample_csv, model_path=model_path)
+    metrics_path = str(tmp_path / "metrics.json")
+    metrics = train(
+        data_path=sample_csv, model_path=model_path, metrics_path=metrics_path
+    )
     # Sur un jeu propre, on attend au moins 70%
     assert metrics["accuracy"] >= 0.70

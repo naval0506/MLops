@@ -2,39 +2,28 @@
 
 ## Résumé
 
-Ce rapport documente la mise en place d'une chaîne MLOps complète pour la détection
-de spam SMS basée sur le dataset UCI, avec GitLab CI/CD, Jenkins, Harbor et Docker.
+Ce rapport documente la mise en place d'une chaîne MLOps pour la détection
+de spam SMS basée sur le dataset UCI, avec Jenkins CI/CD, Docker, Trivy et Harbor.
 
 ## Architecture implémentée
 
 ```
-[Developer]
+[GitHub Repo]
     │ git push
     ▼
-[GitLab / GitHub Repo]
+[Jenkinsfile]
     │
-    ├── .gitlab-ci.yml ──► [GitLab Runner]
-    │                           │
-    └── Jenkinsfile ────► [Jenkins]
-                               │
-                    ┌──────────┴──────────┐
-                    │                     │
-              [Lint + Test]         [Build Docker]
-                    │                     │
-              [ML Quality]         [Scan Trivy]
-                                          │
-                                   [Push Harbor]
-                                          │
-                              ┌───────────┴───────────┐
-                              │                       │
-                        [Staging auto]        [Prod manuel]
-                              │
-                    [docker compose up]
-                              │
-                    ┌─────────┴─────────┐
-                    │                   │
-               [spam-api]        [Prometheus]
-               port 8000          [Grafana]
+    ├── Lint + tests + entraînement ML
+    ├── Build Docker image
+    ├── Scan Trivy HIGH/CRITICAL
+    ├── Push Harbor
+    └── Déploiement SSH + Docker Compose
+            │
+            ▼
+      [Serveur staging/prod]
+            │
+            ├── spam-api port 8000
+            └── Prometheus / Grafana optionnels
 ```
 
 ## Modèle ML
@@ -51,23 +40,23 @@ de spam SMS basée sur le dataset UCI, avec GitLab CI/CD, Jenkins, Harbor et Doc
 ## Pipeline CI/CD
 
 **6 stages séquentiels :**
-1. **Lint** : flake8 + black (parallèle)
-2. **Test** : pytest + coverage + validation accuracy ML (parallèle)
-3. **Build** : Docker multi-stage (image ~200MB)
-4. **Scan** : Trivy sur l'image exportée
-5. **Push** : Harbor avec tags SHA + latest
-6. **Deploy** : SSH + docker compose (staging auto, prod manuel)
+1. **Quality and Tests** : black, flake8, pytest
+2. **Train Model** : entraînement scikit-learn et export du modèle
+3. **Build Docker Image** : Docker multi-stage
+4. **Security Scan** : Trivy si installé
+5. **Push Harbor** : Harbor ou registry compatible si activé
+6. **Deploy Compose** : Docker Compose si activé
 
 ## Sécurité
 
 - Image Docker avec utilisateur non-root
 - Secrets CI/CD chiffrés (jamais dans le code)
 - Scan Trivy HIGH/CRITICAL à chaque build
-- Robot account Harbor avec permissions minimales
+- Robot account Harbor avec permissions minimales si Harbor est utilisé
 
 ## Résultats
 
-- Pipeline complet en ~8 minutes
-- Déploiement zero-downtime (rolling update via Compose)
+- Pipeline complet vérifiable localement
+- Déploiement via Docker Compose
 - Interface web fonctionnelle sur port 8000
 - Health check automatique post-déploiement

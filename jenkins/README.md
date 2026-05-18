@@ -1,8 +1,8 @@
 # Jenkins — Démarrage simple
 
-Pour une démo légère, Jenkins peut
-lire le projet depuis GitHub, Gitea ou un dépôt local, puis exécuter le
-`Jenkinsfile`.
+Pour une démo légère, Jenkins lit le projet depuis GitHub, puis exécute le
+`Jenkinsfile`. GitLab CE reste optionnel et peut être lancé en Docker si la
+soutenance demande une instance GitLab locale.
 
 Le pipeline est prévu pour le service Docker Compose `jenkins`, car les jobs
 Python utilisent `docker run --volumes-from jenkins`.
@@ -23,5 +23,11 @@ Paramètres Jenkins optionnels :
 | `PUSH_TO_HARBOR` | `true` | Active le push Docker vers Harbor |
 | `HARBOR_LOGIN` | `false` en local, `true` pour Harbor réel | Active `docker login` |
 | `DEPLOY` | `true` | Lance `docker compose up -d spam-api` |
+| `REMOTE_HOST` | `192.168.1.20` | Serveur de déploiement distant |
+| `REMOTE_USER` | `deploy` | Utilisateur SSH |
+| `REMOTE_DEPLOY_PATH` | `/opt/spam-detector` | Dossier Compose distant |
+| `COMPOSE_FILE` | `docker-compose.prod.yml` | Fichier Compose de déploiement |
 
 Credential optionnel pour Harbor réel : `harbor-credentials`.
+
+Guide complet d'installation Docker : `docs/install_services_docker.md`.

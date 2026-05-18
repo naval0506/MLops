@@ -1,4 +1,9 @@
-# Guide de Démarrage — Spam Detector MLOps (Jenkins + Harbor)
+# Guide de Démarrage — Spam Detector MLOps (GitHub + Jenkins + Harbor)
+
+Le dépôt source peut rester sur GitHub. Jenkins remplace GitLab CI/CD pour
+orchestrer le pipeline. Si une instance GitLab est demandée pour la
+démonstration, elle peut être lancée en Docker sans changer le pipeline actuel :
+voir `docs/install_services_docker.md`.
 
 ## ÉTAPE 1 — Ajouter le dataset
 
@@ -28,12 +33,22 @@ uvicorn src.app:app --port 8000
 # → http://localhost:8000/docs   API Swagger
 ```
 
+Endpoints utiles :
+
+```text
+GET  /health       statut API + modèle
+GET  /model/info   métriques du dernier entraînement
+GET  /metrics      métriques Prometheus
+POST /predict      prédiction d'un message
+POST /predict/batch prédiction en lot
+```
+
 ---
 
 ## ÉTAPE 3 — Lancer avec Docker
 
 ```bash
-cp .env.example .env           # éditer .env avec tes valeurs
+cp .env.example .env         
 docker compose up -d spam-api
 # → http://localhost:8000
 ```
@@ -47,64 +62,74 @@ docker compose --profile monitoring up -d
 
 ---
 
-## ÉTAPE 4 — Installer Harbor
+## ÉTAPE 4 — Registry / Harbor
+
+Pour une démo légère sans gros téléchargement :
 
 ```bash
-# Télécharger Harbor
-wget https://github.com/goharbor/harbor/releases/download/v2.10.2/harbor-online-installer-v2.10.2.tgz
-tar xvf harbor-online-installer-v2.10.2.tgz && cd harbor
-cp harbor.yml.tmpl harbor.yml
-# Éditer harbor.yml : hostname + harbor_admin_password
-sudo ./install.sh --with-trivy
-# Interface : http://TON_IP  (admin / ton_mot_de_passe)
+docker compose --profile registry up -d registry
 ```
 
-Créer le projet et le robot account (voir `harbor/README.md`).
+Cela lance un registry Docker local sur `localhost:5000`. Harbor complet reste
+documenté dans `harbor/README.md`, mais il n'est pas obligatoire pour tester
+l'application.
 
 ---
 
-## ÉTAPE 5 — Installer Jenkins
+## ÉTAPE 5 — Configurer Jenkins
+
+Le pipeline principal du projet est défini dans `Jenkinsfile`.
+
+Pour une démo simple, Jenkins lit directement le dépôt GitHub.
 
 ```bash
 docker compose -f jenkins/jenkins-docker-compose.yml up -d
 docker exec jenkins cat /var/jenkins_home/secrets/initialAdminPassword
-# Ouvrir http://localhost:8080 → coller le mot de passe
 ```
 
-Plugins à installer (Manage Jenkins → Plugins) :
-- SSH Agent, Docker Pipeline, HTML Publisher, AnsiColor
+Interface Jenkins : `http://localhost:8085`.
 
-Credentials à créer (Manage Jenkins → Credentials → Global) :
-| ID | Type | Valeur |
-|----|------|--------|
-| `harbor-credentials` | Username+Password | robot Harbor |
-| `ssh-staging-key` | SSH private key | clé SSH staging |
-| `ssh-prod-key` | SSH private key | clé SSH prod |
+Créer un job Pipeline :
 
-Variables globales (Manage Jenkins → Configure System → Environment variables) :
-```
-HARBOR_HOST   = harbor.tondomaine.com
-STAGING_HOST  = 192.168.1.10
-STAGING_USER  = deploy
-STAGING_PATH  = /opt/spam-detector
-PROD_HOST     = 10.0.0.5
-PROD_USER     = deploy
-PROD_PATH     = /opt/spam-detector
-```
+- Definition : `Pipeline script from SCM`
+- SCM : `Git`
+- Repository URL : ton repo GitHub
+- Script Path : `Jenkinsfile`
+
+Pour pousser l'image vers Harbor, ajouter un credential Jenkins :
+
+- ID : `harbor-credentials`
+- Type : username/password
+- Username/password : robot account Harbor
+
+Paramètres Jenkins optionnels :
+
+| Variable | Exemple |
+|----------|---------|
+| `HARBOR_HOST` | `harbor.local` ou `192.168.1.5:5000` |
+| `IMAGE_NAME` | `spam-detector/spam-api` |
+| `PUSH_TO_HARBOR` | `true` pour pousser l'image |
+| `HARBOR_LOGIN` | `true` seulement pour Harbor avec authentification |
+| `DEPLOY` | `true` pour lancer Docker Compose |
+| `REMOTE_HOST` | IP du serveur distant, vide pour deploy local |
+| `REMOTE_USER` | utilisateur SSH, ex. `deploy` |
+| `REMOTE_DEPLOY_PATH` | `/opt/spam-detector` |
+| `COMPOSE_FILE` | `docker-compose.prod.yml` |
 
 ---
 
-## ÉTAPE 6 — Créer le Pipeline Jenkins
+## ÉTAPE 6 — Lancer le pipeline Jenkins
 
-New Item → `spam-detector` → Pipeline → OK
+Le pipeline exécute simplement :
 
-- Definition : `Pipeline script from SCM`
-- SCM : Git
-- Repository URL : URL de ton repo (GitHub, Gitea, etc.)
-- Script Path : `Jenkinsfile`
-- Branches : `*/main`, `*/develop`
+1. `black --check`, `flake8`, `pytest`
+3. entraînement du modèle
+4. build Docker
+5. scan Trivy si Trivy est installé
+6. push Harbor si `PUSH_TO_HARBOR=true`
+7. déploiement Compose si `DEPLOY=true`
 
-→ **Build Now** pour lancer le premier build.
+Jenkins couvre toute la partie CI/CD depuis GitHub.
 
 ---
 
@@ -118,7 +143,13 @@ sudo mkdir -p /opt/spam-detector
 sudo chown deploy:deploy /opt/spam-detector
 
 # Copier les fichiers
-scp docker-compose.yml .env deploy@SERVEUR:/opt/spam-detector/
+scp docker-compose.prod.yml .env deploy@SERVEUR:/opt/spam-detector/
+```
+
+Tester l'accès SSH depuis la machine Jenkins :
+
+```bash
+ssh deploy@SERVEUR 'docker compose version && docker ps'
 ```
 
 ---

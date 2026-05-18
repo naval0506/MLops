@@ -15,7 +15,7 @@ services:
       - METRICS_PATH=/app/model/metrics.json
       - PYTHONPATH=/app/src
     volumes:
-      - ./model:/app/model:ro   # <-- CORRIGÉ : Lit directement depuis ton PC
+      - ./model:/app/model:ro
     healthcheck:
       test: ["CMD","python","-c","import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
       interval: 30s
@@ -38,21 +38,20 @@ services:
       - METRICS_PATH=/app/model/metrics.json
       - DATA_PATH=/app/data/spam.csv
     volumes:
-      - ./model:/app/model      # <-- CORRIGÉ : Écrit directement dans ton dossier PC
+      - ./model:/app/model
       - ./data:/app/data:ro
     networks: [spam-net]
 
-  # ── Harbor Registry ───────────────────────────────────────────────────────
-  harbor-registry:
-    image: goharbor/registry-photon:v2.10.2
-    container_name: harbor-registry
-    profiles: [harbor]
+  # ── Registry local léger (alternative à Harbor pour la démo) ─────────────
+  registry:
+    image: registry:2
+    container_name: local-registry
+    profiles: [registry]
     restart: unless-stopped
     ports:
       - "5000:5000"
     volumes:
-      - harbor-data:/storage
-      - ./harbor/config.yml:/etc/registry/config.yml:ro
+      - registry-data:/var/lib/registry
     networks: [spam-net]
 
   # ── Prometheus ────────────────────────────────────────────────────────────
@@ -78,7 +77,7 @@ services:
     profiles: [monitoring]
     restart: unless-stopped
     ports:
-      - "${GRAFANA_PORT:-3001}:3000"   # <-- CORRIGÉ : 3001 pour éviter le conflit
+      - "${GRAFANA_PORT:-3001}:3000"
     environment:
       - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-admin}
       - GF_USERS_ALLOW_SIGN_UP=false
@@ -89,8 +88,7 @@ services:
     networks: [spam-net]
 
 volumes:
-  # model-data a été supprimé car on utilise maintenant le dossier local
-  harbor-data:
+  registry-data:
   prometheus-data:
   grafana-data:
 
