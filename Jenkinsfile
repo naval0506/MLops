@@ -7,6 +7,8 @@ pipeline {
         booleanParam(name: 'PUSH_TO_HARBOR', defaultValue: false, description: 'Pousser l image vers Harbor')
         booleanParam(name: 'HARBOR_LOGIN', defaultValue: false, description: 'Faire docker login avec harbor-credentials')
         booleanParam(name: 'DEPLOY', defaultValue: false, description: 'Lancer docker compose up -d spam-api')
+        booleanParam(name: 'PULL_BUILD_CACHE', defaultValue: false, description: 'Telecharger image latest pour cache Docker')
+        booleanParam(name: 'UPDATE_TRIVY_DB', defaultValue: false, description: 'Telecharger/mettre a jour la base Trivy')
         string(name: 'REMOTE_HOST', defaultValue: '', description: 'Host distant pour le déploiement (SSH)')
         string(name: 'REMOTE_USER', defaultValue: '', description: 'Utilisateur SSH sur le host distant')
         string(name: 'REMOTE_DEPLOY_PATH', defaultValue: '/opt/spam-detector', description: 'Dossier contenant docker-compose.prod.yml sur le serveur distant')
@@ -113,8 +115,13 @@ PY
             steps {
                 sh '''
                     mkdir -p "$TRIVY_CACHE_DIR"
+                    TRIVY_DB_ARGS=""
+                    if [ "${UPDATE_TRIVY_DB}" != "true" ]; then
+                        TRIVY_DB_ARGS="--skip-db-update --skip-java-db-update"
+                    fi
                     if command -v trivy >/dev/null 2>&1; then
                         trivy fs \
+                            $TRIVY_DB_ARGS \
                             --cache-dir "$TRIVY_CACHE_DIR" \
                             --scanners vuln,secret,misconfig \
                             --severity UNKNOWN,LOW,MEDIUM,HIGH,CRITICAL \
@@ -122,6 +129,7 @@ PY
                             --exit-code 0 \
                             .
                         trivy fs \
+                            $TRIVY_DB_ARGS \
                             --cache-dir "$TRIVY_CACHE_DIR" \
                             --scanners vuln,secret,misconfig \
                             --ignore-unfixed \
@@ -135,6 +143,7 @@ PY
                             -w "$PWD" \
                             -v trivy-cache:/root/.cache/trivy \
                             aquasec/trivy:latest fs \
+                            $TRIVY_DB_ARGS \
                             --cache-dir /root/.cache/trivy \
                             --scanners vuln,secret,misconfig \
                             --severity UNKNOWN,LOW,MEDIUM,HIGH,CRITICAL \
@@ -146,6 +155,7 @@ PY
                             -w "$PWD" \
                             -v trivy-cache:/root/.cache/trivy \
                             aquasec/trivy:latest fs \
+                            $TRIVY_DB_ARGS \
                             --cache-dir /root/.cache/trivy \
                             --scanners vuln,secret,misconfig \
                             --ignore-unfixed \
@@ -160,7 +170,9 @@ PY
         stage('Build Docker Image') {
             steps {
                 sh '''
-                    docker pull "$IMAGE_LATEST" || true
+                    if [ "${PULL_BUILD_CACHE}" = "true" ]; then
+                        docker pull "$IMAGE_LATEST" || true
+                    fi
                     docker build \
                         --cache-from "$IMAGE_LATEST" \
                         -f docker/Dockerfile \
@@ -174,8 +186,13 @@ PY
         stage('Security Scan') {
             steps {
                 sh '''
+                    TRIVY_DB_ARGS=""
+                    if [ "${UPDATE_TRIVY_DB}" != "true" ]; then
+                        TRIVY_DB_ARGS="--skip-db-update --skip-java-db-update"
+                    fi
                     if command -v trivy >/dev/null 2>&1; then
                         trivy image \
+                            $TRIVY_DB_ARGS \
                             --cache-dir "$TRIVY_CACHE_DIR" \
                             --scanners vuln,secret,misconfig \
                             --severity UNKNOWN,LOW,MEDIUM,HIGH,CRITICAL \
@@ -183,6 +200,7 @@ PY
                             --exit-code 0 \
                             "$IMAGE"
                         trivy image \
+                            $TRIVY_DB_ARGS \
                             --cache-dir "$TRIVY_CACHE_DIR" \
                             --scanners vuln,secret,misconfig \
                             --ignore-unfixed \
@@ -195,6 +213,7 @@ PY
                             -v /var/run/docker.sock:/var/run/docker.sock \
                             -v trivy-cache:/root/.cache/trivy \
                             aquasec/trivy:latest image \
+                            $TRIVY_DB_ARGS \
                             --cache-dir /root/.cache/trivy \
                             --scanners vuln,secret,misconfig \
                             --severity UNKNOWN,LOW,MEDIUM,HIGH,CRITICAL \
@@ -205,6 +224,7 @@ PY
                             -v /var/run/docker.sock:/var/run/docker.sock \
                             -v trivy-cache:/root/.cache/trivy \
                             aquasec/trivy:latest image \
+                            $TRIVY_DB_ARGS \
                             --cache-dir /root/.cache/trivy \
                             --scanners vuln,secret,misconfig \
                             --ignore-unfixed \
