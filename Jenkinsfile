@@ -17,8 +17,7 @@ pipeline {
         IMAGE_TAG = "${BUILD_NUMBER}"
         IMAGE = "${HARBOR_HOST}/${IMAGE_NAME}:${IMAGE_TAG}"
         IMAGE_LATEST = "${HARBOR_HOST}/${IMAGE_NAME}:latest"
-        DOCKER_BUILDKIT = '1'
-        BUILDKIT_INLINE_CACHE = '1'
+        DOCKER_BUILDKIT = '0'
         PIP_CACHE_DIR = '/root/.cache/pip'
         TRIVY_CACHE_DIR = '.cache/trivy'
     }
@@ -132,8 +131,8 @@ PY
                     else
                         echo "Trivy absent dans Jenkins: scan source via conteneur aquasec/trivy."
                         docker run --rm \
-                            -v "$PWD":/work \
-                            -w /work \
+                            --volumes-from jenkins \
+                            -w "$PWD" \
                             -v trivy-cache:/root/.cache/trivy \
                             aquasec/trivy:latest fs \
                             --cache-dir /root/.cache/trivy \
@@ -143,8 +142,8 @@ PY
                             --exit-code 0 \
                             .
                         docker run --rm \
-                            -v "$PWD":/work \
-                            -w /work \
+                            --volumes-from jenkins \
+                            -w "$PWD" \
                             -v trivy-cache:/root/.cache/trivy \
                             aquasec/trivy:latest fs \
                             --cache-dir /root/.cache/trivy \
@@ -161,8 +160,8 @@ PY
         stage('Build Docker Image') {
             steps {
                 sh '''
+                    docker pull "$IMAGE_LATEST" || true
                     docker build \
-                        --build-arg BUILDKIT_INLINE_CACHE=1 \
                         --cache-from "$IMAGE_LATEST" \
                         -f docker/Dockerfile \
                         -t "$IMAGE" \

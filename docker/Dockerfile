@@ -1,12 +1,9 @@
-# syntax=docker/dockerfile:1.7
-
 # ── Stage 1 : builder ─────────────────────────────────────────────────────────
 FROM python:3.11-slim AS builder
 WORKDIR /build
 COPY requirements-runtime.txt .
-RUN --mount=type=cache,target=/root/.cache/pip \
-    pip install --upgrade pip setuptools wheel \
-    && pip install --prefix=/install -r requirements-runtime.txt
+RUN pip install --no-cache-dir --upgrade pip setuptools wheel \
+    && pip install --no-cache-dir --prefix=/install -r requirements-runtime.txt
 
 # ── Stage 2 : runner ──────────────────────────────────────────────────────────
 FROM python:3.11-slim AS runner
@@ -14,17 +11,15 @@ LABEL maintainer="MLOps Team" description="Spam Detector API" version="1.0.0"
 
 ENV DEBIAN_FRONTEND=noninteractive
 
-RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
-    --mount=type=cache,target=/var/lib/apt,sharing=locked \
-    apt-get update \
+RUN apt-get update \
     && apt-get upgrade -y \
+    && rm -rf /var/lib/apt/lists/* \
     && groupadd -r appuser \
     && useradd -r -g appuser appuser
 WORKDIR /app
 
 COPY --from=builder /install /usr/local
-RUN --mount=type=cache,target=/root/.cache/pip \
-    pip install --upgrade pip setuptools wheel
+RUN pip install --no-cache-dir --upgrade pip setuptools wheel
 COPY src/ ./src/
 COPY model/ ./model/
 
