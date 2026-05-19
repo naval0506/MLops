@@ -17,6 +17,10 @@ pipeline {
         IMAGE_TAG = "${BUILD_NUMBER}"
         IMAGE = "${HARBOR_HOST}/${IMAGE_NAME}:${IMAGE_TAG}"
         IMAGE_LATEST = "${HARBOR_HOST}/${IMAGE_NAME}:latest"
+        DOCKER_BUILDKIT = '1'
+        BUILDKIT_INLINE_CACHE = '1'
+        PIP_CACHE_DIR = '/root/.cache/pip'
+        TRIVY_CACHE_DIR = '.cache/trivy'
     }
 
     options {
@@ -34,7 +38,10 @@ pipeline {
         stage('Quality and Tests') {
             steps {
                 sh '''
-                    docker run --rm --volumes-from jenkins -w "$PWD" python:3.11-slim sh -c "
+                    docker run --rm --volumes-from jenkins -w "$PWD" \
+                        -v pip-cache:/root/.cache/pip \
+                        -e PIP_CACHE_DIR=/root/.cache/pip \
+                        python:3.11-slim sh -c "
                         python -m pip install -r requirements.txt &&
                         python -m black --check src tests &&
                         python -m flake8 src tests &&
@@ -47,7 +54,10 @@ pipeline {
         stage('Prepare Dataset') {
             steps {
                 sh '''
-                    docker run --rm --volumes-from jenkins -w "$PWD" python:3.11-slim sh -c "
+                    docker run --rm --volumes-from jenkins -w "$PWD" \
+                        -v pip-cache:/root/.cache/pip \
+                        -e PIP_CACHE_DIR=/root/.cache/pip \
+                        python:3.11-slim sh -c "
                         python -m pip install pandas==2.2.3 &&
                         mkdir -p data &&
                         python - <<'PY'
@@ -87,7 +97,10 @@ PY
         stage('Train Model') {
             steps {
                 sh '''
-                    docker run --rm --volumes-from jenkins -w "$PWD" python:3.11-slim sh -c "
+                    docker run --rm --volumes-from jenkins -w "$PWD" \
+                        -v pip-cache:/root/.cache/pip \
+                        -e PIP_CACHE_DIR=/root/.cache/pip \
+                        python:3.11-slim sh -c "
                         python -m pip install -r requirements.txt &&
                         python src/train.py
                     "
@@ -97,10 +110,64 @@ PY
             }
         }
 
+        stage('Security Scan Source') {
+            steps {
+                sh '''
+                    mkdir -p "$TRIVY_CACHE_DIR"
+                    if command -v trivy >/dev/null 2>&1; then
+                        trivy fs \
+                            --cache-dir "$TRIVY_CACHE_DIR" \
+                            --scanners vuln,secret,misconfig \
+                            --severity UNKNOWN,LOW,MEDIUM,HIGH,CRITICAL \
+                            --format table \
+                            --exit-code 0 \
+                            .
+                        trivy fs \
+                            --cache-dir "$TRIVY_CACHE_DIR" \
+                            --scanners vuln,secret,misconfig \
+                            --ignore-unfixed \
+                            --severity HIGH,CRITICAL \
+                            --exit-code 1 \
+                            .
+                    else
+                        echo "Trivy absent dans Jenkins: scan source via conteneur aquasec/trivy."
+                        docker run --rm \
+                            -v "$PWD":/work \
+                            -w /work \
+                            -v trivy-cache:/root/.cache/trivy \
+                            aquasec/trivy:latest fs \
+                            --cache-dir /root/.cache/trivy \
+                            --scanners vuln,secret,misconfig \
+                            --severity UNKNOWN,LOW,MEDIUM,HIGH,CRITICAL \
+                            --format table \
+                            --exit-code 0 \
+                            .
+                        docker run --rm \
+                            -v "$PWD":/work \
+                            -w /work \
+                            -v trivy-cache:/root/.cache/trivy \
+                            aquasec/trivy:latest fs \
+                            --cache-dir /root/.cache/trivy \
+                            --scanners vuln,secret,misconfig \
+                            --ignore-unfixed \
+                            --severity HIGH,CRITICAL \
+                            --exit-code 1 \
+                            .
+                    fi
+                '''
+            }
+        }
+
         stage('Build Docker Image') {
             steps {
                 sh '''
-                    docker build -f docker/Dockerfile -t "$IMAGE" -t "$IMAGE_LATEST" .
+                    docker build \
+                        --build-arg BUILDKIT_INLINE_CACHE=1 \
+                        --cache-from "$IMAGE_LATEST" \
+                        -f docker/Dockerfile \
+                        -t "$IMAGE" \
+                        -t "$IMAGE_LATEST" \
+                        .
                 '''
             }
         }
@@ -110,7 +177,15 @@ PY
                 sh '''
                     if command -v trivy >/dev/null 2>&1; then
                         trivy image \
-                            --scanners vuln \
+                            --cache-dir "$TRIVY_CACHE_DIR" \
+                            --scanners vuln,secret,misconfig \
+                            --severity UNKNOWN,LOW,MEDIUM,HIGH,CRITICAL \
+                            --format table \
+                            --exit-code 0 \
+                            "$IMAGE"
+                        trivy image \
+                            --cache-dir "$TRIVY_CACHE_DIR" \
+                            --scanners vuln,secret,misconfig \
                             --ignore-unfixed \
                             --severity HIGH,CRITICAL \
                             --exit-code 1 \
@@ -119,9 +194,20 @@ PY
                         echo "Trivy absent dans Jenkins: scan via conteneur aquasec/trivy."
                         docker run --rm \
                             -v /var/run/docker.sock:/var/run/docker.sock \
-                            -v trivy-cache:/root/.cache/ \
+                            -v trivy-cache:/root/.cache/trivy \
                             aquasec/trivy:latest image \
-                            --scanners vuln \
+                            --cache-dir /root/.cache/trivy \
+                            --scanners vuln,secret,misconfig \
+                            --severity UNKNOWN,LOW,MEDIUM,HIGH,CRITICAL \
+                            --format table \
+                            --exit-code 0 \
+                            "$IMAGE"
+                        docker run --rm \
+                            -v /var/run/docker.sock:/var/run/docker.sock \
+                            -v trivy-cache:/root/.cache/trivy \
+                            aquasec/trivy:latest image \
+                            --cache-dir /root/.cache/trivy \
+                            --scanners vuln,secret,misconfig \
                             --ignore-unfixed \
                             --severity HIGH,CRITICAL \
                             --exit-code 1 \

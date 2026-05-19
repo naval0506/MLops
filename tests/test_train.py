@@ -13,7 +13,6 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
 from train import build_pipeline, load_data, train
 
-
 # ── Fixtures ──────────────────────────────────────────────────────────────────
 
 
