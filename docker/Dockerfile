@@ -2,8 +2,8 @@
 FROM python:3.11-slim AS builder
 WORKDIR /build
 COPY requirements-runtime.txt .
-RUN pip install --no-cache-dir --upgrade pip setuptools wheel \
-    && pip install --no-cache-dir --prefix=/install -r requirements-runtime.txt
+RUN pip install --upgrade pip setuptools wheel \
+    && pip install --prefix=/install -r requirements-runtime.txt
 
 # ── Stage 2 : runner ──────────────────────────────────────────────────────────
 FROM python:3.11-slim AS runner
@@ -19,7 +19,7 @@ RUN apt-get update \
 WORKDIR /app
 
 COPY --from=builder /install /usr/local
-RUN pip install --no-cache-dir --upgrade pip setuptools wheel
+RUN pip install --upgrade pip setuptools wheel
 COPY src/ ./src/
 COPY model/ ./model/
 

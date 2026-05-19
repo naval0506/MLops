@@ -9,6 +9,7 @@ pipeline {
         booleanParam(name: 'DEPLOY', defaultValue: false, description: 'Lancer docker compose up -d spam-api')
         booleanParam(name: 'PULL_BUILD_CACHE', defaultValue: false, description: 'Telecharger image latest pour cache Docker')
         booleanParam(name: 'UPDATE_TRIVY_DB', defaultValue: false, description: 'Telecharger/mettre a jour la base Trivy')
+        booleanParam(name: 'PRUNE_DOCKER_IMAGES', defaultValue: false, description: 'Nettoyer les images Docker non utilisees apres le build')
         string(name: 'REMOTE_HOST', defaultValue: '', description: 'Host distant pour le déploiement (SSH)')
         string(name: 'REMOTE_USER', defaultValue: '', description: 'Utilisateur SSH sur le host distant')
         string(name: 'REMOTE_DEPLOY_PATH', defaultValue: '/opt/spam-detector', description: 'Dossier contenant docker-compose.prod.yml sur le serveur distant')
@@ -302,7 +303,11 @@ PY
 
     post {
         always {
-            sh 'docker image prune -f || true'
+            sh '''
+                if [ "${PRUNE_DOCKER_IMAGES}" = "true" ]; then
+                    docker image prune -f || true
+                fi
+            '''
         }
     }
 }
